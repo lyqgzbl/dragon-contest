@@ -1,0 +1,57 @@
+from nonebot import require
+from nonebot.log import logger
+from nonebot.plugin import PluginMetadata, inherit_supported_adapters
+
+require("nonebot_plugin_orm")
+require("nonebot_plugin_alconna")
+
+from .commands.command_registry import (
+    plugin_config,
+    dragon_contest_command,
+    join_dragon_contest_command,
+    cancel_dragon_contest_command,
+    revise_dragon_name_command,
+)
+
+
+__plugin_meta__ = PluginMetadata(
+    name="dragon-contest",
+    description="龙龙大赛插件",
+    usage="/加入龙龙大赛 <龙龙名称>",
+    type="application",
+    homepage="https://github.com/lyqgzbl/dragon-contest",
+    supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
+    extra={
+        "author": "lyqgzbl <admin@lyqgzbl.com",
+        "version": "1.0.0",
+    },
+)
+
+
+if not plugin_config.dc_github_token:
+    logger.opt(colors=True).warning(
+        "<yellow>缺失必要配置项 'dc_github_token'，已禁用龙龙大赛插件</yellow>"
+    )
+    openai_handler = None
+else:
+    from .openai_client import OpenAIHandler
+    openai_handler = OpenAIHandler(
+        api_key=plugin_config.dc_github_token,
+        endpoint="https://models.github.ai/inference",
+        model_name="openai/gpt-4.1-mini",
+        temperature=0.7,
+        top_p=0.9,
+    )
+
+
+from .commands import admin as _admin # noqa: F401
+from .commands import signup as _signup  # noqa: F401
+
+
+__all__ = [
+    "dragon_contest_command",
+    "join_dragon_contest_command",
+    "cancel_dragon_contest_command",
+    "revise_dragon_name_command",
+    "openai_handler",
+]
