@@ -57,6 +57,60 @@ dragon_contest_command = on_alconna(
 )
 
 
+add_dragon_contest_player_command = on_alconna(
+    Alconna(
+        "添加龙龙大赛参赛者",
+        Args["user_id#用户ID", str],
+        Args["name#龙龙名称", str],
+        meta=CommandMeta(
+            compact=True,
+            description="为当前龙龙大赛添加参赛者",
+            usage="/添加龙龙大赛参赛者 用户ID 龙龙名称",
+            example="/添加龙龙大赛参赛者 12345678 我的龙龙",
+        ),
+    ),
+    permission=SUPERUSER,
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
+remove_dragon_contest_player_command = on_alconna(
+    Alconna(
+        "移除龙龙大赛参赛者",
+        Args["user_id#用户ID", str],
+        meta=CommandMeta(
+            compact=True,
+            description="移除当前龙龙大赛的参赛者",
+            usage="/移除龙龙大赛参赛者 用户ID",
+            example="/移除龙龙大赛参赛者 12345678",
+        ),
+    ),
+    permission=SUPERUSER,
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
+list_dragon_contest_player_command = on_alconna(
+    Alconna(
+        "龙龙大赛参赛名单",
+        meta=CommandMeta(
+            compact=True,
+            description="查看当前龙龙大赛的参赛名单",
+            usage="/龙龙大赛参赛名单",
+            example="/龙龙大赛参赛名单",
+        ),
+    ),
+    permission=SUPERUSER,
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
 join_dragon_contest_command = on_alconna(
     Alconna(
         "加入龙龙大赛",
@@ -65,7 +119,7 @@ join_dragon_contest_command = on_alconna(
             compact=True,
             description="加入龙龙大赛",
             usage="/加入龙龙大赛",
-            example="/加入龙龙大赛",
+            example="/加入龙龙大赛 玉涛性欲姬",
         ),
     ),
     use_cmd_start=True,
@@ -111,6 +165,9 @@ __all__ = [
     "plugin_config",
     "is_enable",
     "dragon_contest_command",
+    "add_dragon_contest_player_command",
+    "remove_dragon_contest_player_command",
+    "list_dragon_contest_player_command",
     "join_dragon_contest_command",
     "cancel_dragon_contest_command",
     "revise_dragon_name_command",
