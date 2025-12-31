@@ -4,6 +4,7 @@ from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
 require("nonebot_plugin_orm")
 require("nonebot_plugin_alconna")
+require("nonebot_plugin_apscheduler")
 
 from .commands.command_registry import (
     plugin_config,
