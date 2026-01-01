@@ -63,17 +63,17 @@ async def get_or_create_config(sess: async_scoped_session) -> DragonContestConfi
             default_limit=plugin_config.dc_default_dragon_number,
         )
         sess.add(config)
-        await sess.commit()
+        await sess.flush()
     return config
 
 
-def register_contest_start_job(contest: DragonContest):
+def register_contest_start_job(contest_id: int, start_ts: int):
     scheduler.add_job(
         on_contest_start,
         trigger="date",
-        run_date=datetime.fromtimestamp(contest.start_ts),
-        args=[contest.id],
-        id=f"dragon_contest_start_{contest.id}",
+        run_date=datetime.fromtimestamp(start_ts),
+        args=[contest_id],
+        id=f"dragon_contest_start_{contest_id}",
         replace_existing=True,
     )
 
@@ -92,6 +92,12 @@ async def on_contest_start(contest_id: int):
         except Exception as e:
             await sess.rollback()
             logger.exception(e)
+            return
+    try:
+        from .contest_runner import run_contest
+        await run_contest(contest_id)
+    except Exception:
+        logger.exception("启动龙龙大赛失败")
 
 
 async def run_single_battle(
@@ -181,4 +187,4 @@ async def restore_contest_start_jobs():
         for contest in contests:
             if contest.start_ts <= now_ts:
                 continue
-            register_contest_start_job(contest)
+            register_contest_start_job(contest.id, contest.start_ts)

@@ -21,17 +21,23 @@ dragon_contest_command = on_alconna(
         "dragon_contest",
         Subcommand(
             "create|创建",
-            Args["time#比赛时间", str],
+            Args["date#比赛日期(YYYY/MM/DD)", str],
+            Args["time#比赛时间(HH:MM)", str],
             Option(
                 "-n|number",
                 Args["limit#参加人数限制,最大值为 32", int],
             ),
-            help_text="创建一个新的龙龙大赛,时间格式为YYYY/MM/DD HH:MM",
+            help_text="创建一个新的龙龙大赛,时间格式为 YYYY/MM/DD HH:MM",
         ),
         Subcommand(
             "delete|删除",
             Args["id#比赛ID", int],
             help_text="删除指定ID的龙龙大赛",
+        ),
+        Subcommand(
+            "force_delete|强制删除",
+            Args["id#比赛ID", int],
+            help_text="强制删除指定ID的龙龙大赛（即使正在进行中）",
         ),
         Subcommand(
             "list|列表",
