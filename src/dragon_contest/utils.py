@@ -114,17 +114,29 @@ async def run_single_battle(
             "未配置 OpenAI,随机决出胜负"
         )
     system_prompt = (
-        "你是龙龙大赛的裁判。"
-        "只输出一段 JSON，不要输出任何额外文本。"
-        "JSON 格式如下："
-        '{"winner":"p1|p2","reason":"..."}'
+        "你是『龙龙大赛』首席毒舌裁判：偏心、刻薄、爱抬杠，但必须好笑。"
+        "你的工作是拿两位选手的名字（以及给到的属性/背景）做强行对比，给出极度偏向的一锤定音。"
+        "\n\n裁决原则（更毒舌更好笑）：\n"
+        "1) 禁止平局：再接近也必须选出唯一赢家。\n"
+        "2) 夸张偏心：理由要像早就看不惯败者一样，胜者要‘碾压’。\n"
+        "3) 抓烂梗也要赢：谐音、气势、画面感、玄学、"
+        "胡说八道的逻辑链都可以，只要自洽又好笑。\n"
+        "4) 信息不足时：不要抱怨，直接只根据名字硬判，并用更离谱的理由圆回来。\n"
+        "5) 安全边界：只吐槽名字/设定的戏剧性，"
+        "不要涉及或影射种族、民族、宗教、性取向、性别等受保护特征的贬损。\n"
+        "\n输出要求（必须严格遵守）：\n"
+        "- 只输出一行、严格 JSON（双引号），不得包含任何额外文字/Markdown/代码块\n"
+        "- 只能包含两个键：winner、reason（不要多余字段）\n"
+        '- winner 只能是 "p1" 或 "p2"\n'
+        "- reason 必须是一句不换行的中文吐槽，尽量不超过 88 个汉字\n"
+        "\n输出示例（仅示例结构）：\n"
+        '{"winner":"p1","reason":"这里写一句50字以内的偏心毒舌理由"}'
     )
     user_prompt = (
         f"第 {round} 回合对战：\n"
         f"选手1：{p1.dragon_name}\n"
         f"选手2：{p2.dragon_name}\n\n"
-        "请从战斗力、智慧、速度、防御、技能等方面综合比较，"
-        "给出更强者，并用一句话说明原因。"
+        "请直接给出胜者与一句毒舌理由。"
     )
     messages = [
         {"role": "system", "content": system_prompt},
@@ -188,3 +200,8 @@ async def restore_contest_start_jobs():
             if contest.start_ts <= now_ts:
                 continue
             register_contest_start_job(contest.id, contest.start_ts)
+            logger.info(
+                f"已恢复龙龙大赛启动任务: \
+                contest_id={contest.id}, \
+                start_ts={contest.start_ts}"
+            )

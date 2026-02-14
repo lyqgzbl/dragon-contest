@@ -1,3 +1,6 @@
+import asyncio
+import random
+
 from sqlalchemy import select
 from nonebot import get_bot
 from nonebot.log import logger
@@ -13,7 +16,7 @@ async def run_contest(contest_id: int):
             sess.sync_session.expire_on_commit = False
         except Exception:
             try:
-                sess.expire_on_commit = False  # type: ignore[attr-defined]
+                sess.expire_on_commit = False   # type: ignore[attr-defined]
             except Exception:
                 pass
         contest = await sess.get(DragonContest, contest_id)
@@ -74,17 +77,13 @@ async def run_contest(contest_id: int):
             ).all()
             if len(alive_players) <= 1:
                 break
+            alive_players = list(alive_players)
             await UniMessage.text(
                 f"第 {round_no} 轮比赛开始,当前剩余选手: {len(alive_players)}"
             ).send(target=target, bot=bot)
-            for i in range(0, len(alive_players), 2):
-                if i + 1 >= len(alive_players):
-                    await UniMessage.text(
-                        f"选手 {alive_players[i].dragon_name} 获得轮空,直接晋级下一轮"
-                    ).send(target=target, bot=bot)
-                    continue
-                p1 = alive_players[i]
-                p2 = alive_players[i + 1]
+            while len(alive_players) >= 2:
+                p1 = alive_players.pop(random.randrange(len(alive_players)))
+                p2 = alive_players.pop(random.randrange(len(alive_players)))
                 winner, loser, reason = await run_single_battle(p1, p2, round_no)
                 loser.eliminated = True
                 sess.add(loser)
@@ -97,10 +96,20 @@ async def run_contest(contest_id: int):
                     f"理由：{reason}\n"
                     ).send(target=target, bot=bot)
                 await sess.commit()
+            if len(alive_players) == 1:
+                await UniMessage.text(
+                    f"选手 {alive_players[0].dragon_name} 获得轮空,直接晋级下一轮"
+                ).send(target=target, bot=bot)
             round_no += 1
             contest.current_round = round_no
             sess.add(contest)
             await sess.commit()
+            contest_after_round = await sess.get(DragonContest, contest_id)
+            if not contest_after_round:
+                break
+            if contest_after_round.status != ContestStatus.RUNNING.value:
+                break
+            await asyncio.sleep(120)
         champion = (
             await sess.scalars(
                 select(DragonContestPlayer)
