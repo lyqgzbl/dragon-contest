@@ -1,13 +1,13 @@
 import asyncio
 import random
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from nonebot import get_bot
 from nonebot.log import logger
 from nonebot_plugin_orm import get_session
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage
 
-from .utils import run_single_battle
+from .utils import generate_comparison_image, run_single_battle
 from .models import DragonContest, DragonContestPlayer, ContestStatus
 
 async def run_contest(contest_id: int):
@@ -60,6 +60,7 @@ async def run_contest(contest_id: int):
         ).send(target=target, bot=bot)
         round_no = current_round
         while True:
+            should_stop = False
             contest_now = await sess.get(DragonContest, contest_id)
             if not contest_now:
                 break
@@ -84,18 +85,51 @@ async def run_contest(contest_id: int):
             while len(alive_players) >= 2:
                 p1 = alive_players.pop(random.randrange(len(alive_players)))
                 p2 = alive_players.pop(random.randrange(len(alive_players)))
-                winner, loser, reason = await run_single_battle(p1, p2, round_no)
+                winner, loser, reason, compare_data = await run_single_battle(
+                    p1, p2, round_no
+                )
                 loser.eliminated = True
                 sess.add(loser)
-                await UniMessage.text(
-                    f"对战结果：\n"
-                    f"选手1：{p1.dragon_name}\n"
-                    f"选手2：{p2.dragon_name}\n"
-                    f"获胜者：{winner.dragon_name}\n"
-                    f"失败者：{loser.dragon_name}\n"
-                    f"理由：{reason}\n"
+                try:
+                    compare_data = dict(compare_data or {})
+                    compare_data["title"] = "龙龙大赛"
+                    compare_data["columns"] = [
+                        "维度",
+                        winner.dragon_name,
+                        loser.dragon_name,
+                    ]
+                    img = await generate_comparison_image(compare_data)
+                    await UniMessage.image(raw=img).send(target=target, bot=bot)
+                except Exception:
+                    logger.exception("发送对战结果图片失败，回退为文字")
+                    await UniMessage.text(
+                        f"对战结果：\n"
+                        f"选手1：{p1.dragon_name}\n"
+                        f"选手2：{p2.dragon_name}\n"
+                        f"获胜者：{winner.dragon_name}\n"
+                        f"失败者：{loser.dragon_name}\n"
+                        f"理由：{reason}\n"
                     ).send(target=target, bot=bot)
                 await sess.commit()
+                contest_after_battle = await sess.get(DragonContest, contest_id)
+                if (
+                    not contest_after_battle
+                    or contest_after_battle.status != ContestStatus.RUNNING.value
+                ):
+                    should_stop = True
+                    break
+                alive_count = await sess.scalar(
+                    select(func.count())
+                    .select_from(DragonContestPlayer)
+                    .where(
+                        DragonContestPlayer.contest_id == contest_id,
+                        DragonContestPlayer.eliminated.is_(False),
+                    )
+                )
+                if alive_count and alive_count > 1:
+                    await asyncio.sleep(60)
+            if should_stop:
+                break
             if len(alive_players) == 1:
                 await UniMessage.text(
                     f"选手 {alive_players[0].dragon_name} 获得轮空,直接晋级下一轮"
@@ -109,7 +143,6 @@ async def run_contest(contest_id: int):
                 break
             if contest_after_round.status != ContestStatus.RUNNING.value:
                 break
-            await asyncio.sleep(120)
         champion = (
             await sess.scalars(
                 select(DragonContestPlayer)
