@@ -167,6 +167,24 @@ revise_dragon_name_command = on_alconna(
 )
 
 
+dragon_name_comparison_command = on_alconna(
+    Alconna(
+        "龙龙名称比较",
+        Args["name1#龙龙名称1", str],
+        Args["name2#龙龙名称2", str],
+        meta=CommandMeta(
+            compact=True,
+            description="对比两个龙龙名称",
+            usage="/龙龙名称比较 龙龙名称1 龙龙名称2",
+            example="/龙龙名称比较 玉涛性欲姬 一条咸鱼剑",
+        ),
+    ),
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
 __all__ = [
     "plugin_config",
     "is_enable",
@@ -177,4 +195,5 @@ __all__ = [
     "join_dragon_contest_command",
     "cancel_dragon_contest_command",
     "revise_dragon_name_command",
+    "dragon_name_comparison_command",
 ]

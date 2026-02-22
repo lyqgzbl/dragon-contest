@@ -2,16 +2,18 @@ from datetime import datetime
 
 from nonebot.adapters import Event
 from nonebot.log import logger
+from nonebot_plugin_alconna import UniMessage
 from sqlalchemy import delete, select, func
 from sqlalchemy.exc import IntegrityError
 from nonebot_plugin_orm import async_scoped_session
 
 from ..models import DragonContestPlayer
-from ..utils import get_signup_contest
+from ..utils import generate_comparison_image, get_signup_contest, run_single_battle
 from ..commands.command_registry import (
     cancel_dragon_contest_command,
     join_dragon_contest_command,
     revise_dragon_name_command,
+    dragon_name_comparison_command,
 )
 
 
@@ -123,3 +125,33 @@ async def handle_revise_dragon_name(
         f"新名称：{name}\n"
         f"比赛时间：{dt:%Y-%m-%d %H:%M}"
     )
+
+
+@dragon_name_comparison_command.handle()
+async def handle_dragon_name_comparison(name1: str, name2: str):
+    name1 = str(name1 or "").strip()
+    name2 = str(name2 or "").strip()
+    if not name1 or not name2:
+        await dragon_name_comparison_command.finish("龙龙名称不能为空")
+    if name1 == name2:
+        await dragon_name_comparison_command.finish("龙龙名称不能相同")
+    p1 = DragonContestPlayer(contest_id=0, user_id="comparison_p1", dragon_name=name1)
+    p2 = DragonContestPlayer(contest_id=0, user_id="comparison_p2", dragon_name=name2)
+    try:
+        winner, loser, reason, compare_data = await run_single_battle(p1, p2, 1)
+        payload = dict(compare_data or {})
+        payload["title"] = "龙龙名称比较"
+        payload["subtitle"] = f"{name1} vs {name2}"
+        payload["columns"] = ["维度", winner.dragon_name, loser.dragon_name]
+        img = await generate_comparison_image(payload)
+        await UniMessage.image(raw=img).send(reply_to=True)
+    except Exception as e:
+        logger.exception(e)
+        await dragon_name_comparison_command.finish(
+            "龙龙名称比较\n"
+            f"名称1：{name1}\n"
+            f"名称2：{name2}\n"
+            f"胜者：{winner.dragon_name if 'winner' in locals() else '未知'}\n"
+            f"败者：{loser.dragon_name if 'loser' in locals() else '未知'}\n"
+            f"理由：{reason if 'reason' in locals() else '未知'}"
+        )
