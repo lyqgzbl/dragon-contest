@@ -25,6 +25,16 @@ driver = get_driver()
 plugin_config = get_plugin_config(Config)
 
 
+async def get_contest_champion(sess: async_scoped_session) -> str | None:
+    champion = await sess.scalar(
+        select(DragonContestPlayer.dragon_name)
+        .join(DragonContest, DragonContest.id == DragonContestPlayer.contest_id)
+        .where(DragonContest.status == ContestStatus.FINISHED.value)
+        .order_by(DragonContest.start_ts.desc())
+    )
+    return champion
+
+
 async def generate_comparison_image(compare_data: dict) -> bytes:
     def _clean_text(value: object) -> str:
         text = str(value or "").strip()
@@ -368,9 +378,7 @@ async def run_single_battle(
     compare_data["winner"] = winner_flag
     compare_data["reason"] = reason
     compare_data.setdefault("title", "龙龙大赛")
-    compare_data.setdefault(
-        "subtitle", f"第 {round} 回合：{p1.dragon_name} vs {p2.dragon_name}"
-    )
+    compare_data["subtitle"] = f"第 {round} 回合：{p1.dragon_name} vs {p2.dragon_name}"
     compare_data.setdefault("columns", ["维度", "获胜者", "失败者"])
     compare_data.setdefault("sections", [])
     if winner_flag == "p1":

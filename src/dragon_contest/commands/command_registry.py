@@ -11,9 +11,7 @@ plugin_config = get_plugin_config(Config)
 
 
 def is_enable() -> Rule:
-    def _rule() -> bool:
-        return bool(plugin_config.dc_github_token)
-    return Rule(_rule)
+    return Rule(lambda: bool(plugin_config.dc_github_token))
 
 
 dragon_contest_command = on_alconna(
@@ -185,6 +183,38 @@ dragon_name_comparison_command = on_alconna(
 )
 
 
+dragon_contest_champion_command = on_alconna(
+    Alconna(
+        "龙龙大赛冠军",
+        meta=CommandMeta(
+            compact=True,
+            description="查询历史龙龙大赛冠军",
+            usage="/龙龙大赛冠军",
+            example="/龙龙大赛冠军",
+        ),
+    ),
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
+dragon_contest_help_command = on_alconna(
+    Alconna(
+        "龙龙大赛帮助",
+        meta=CommandMeta(
+            compact=True,
+            description="查询龙龙大赛相关命令帮助",
+            usage="/龙龙大赛帮助",
+            example="/龙龙大赛帮助",
+        ),
+    ),
+    use_cmd_start=True,
+    priority=10,
+    block=True,
+)
+
+
 __all__ = [
     "plugin_config",
     "is_enable",
@@ -196,4 +226,6 @@ __all__ = [
     "cancel_dragon_contest_command",
     "revise_dragon_name_command",
     "dragon_name_comparison_command",
+    "dragon_contest_champion_command",
+    "dragon_contest_help_command",
 ]

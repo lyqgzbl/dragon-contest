@@ -8,12 +8,19 @@ from sqlalchemy.exc import IntegrityError
 from nonebot_plugin_orm import async_scoped_session
 
 from ..models import DragonContestPlayer
-from ..utils import generate_comparison_image, get_signup_contest, run_single_battle
+from ..utils import (
+    generate_comparison_image,
+    get_signup_contest,
+    run_single_battle,
+    get_contest_champion,
+)
 from ..commands.command_registry import (
     cancel_dragon_contest_command,
     join_dragon_contest_command,
     revise_dragon_name_command,
     dragon_name_comparison_command,
+    dragon_contest_champion_command,
+    dragon_contest_help_command,
 )
 
 
@@ -155,3 +162,42 @@ async def handle_dragon_name_comparison(name1: str, name2: str):
             f"败者：{loser.dragon_name if 'loser' in locals() else '未知'}\n"
             f"理由：{reason if 'reason' in locals() else '未知'}"
         )
+
+
+@dragon_contest_champion_command.handle()
+async def handle_dragon_contest_champion(sess: async_scoped_session):
+    try:
+        champion_data = await get_contest_champion(sess)
+        if not champion_data:
+            await dragon_contest_champion_command.send("暂无龙龙大赛冠军数据")
+        await dragon_contest_champion_command.send(
+            f"历史龙龙大赛冠军：{champion_data}"
+        )
+    except Exception as e:
+        logger.exception(e)
+        await dragon_contest_champion_command.finish("查询龙龙大赛冠军失败,请查看日志")
+
+
+@dragon_contest_help_command.handle()
+async def handle_dragon_contest_help():
+    lines = [
+        "龙龙大赛命令帮助\n",
+        "【管理命令】(仅超级用户)\n",
+        "1. /龙龙大赛 创建 YYYY/MM/DD HH:MM [-n|--number 参赛人数]",
+        "2. /龙龙大赛 删除 比赛ID",
+        "3. /龙龙大赛 强制删除 比赛ID",
+        "4. /龙龙大赛 列表",
+        "5. /龙龙大赛 状态\n",
+        "6. /添加龙龙大赛参赛者 用户ID 龙龙名称",
+        "7. /移除龙龙大赛参赛者 用户ID",
+        "8. /龙龙大赛参赛名单\n",
+        "【参赛者命令】\n",
+        "9. /加入龙龙大赛 龙龙名称",
+        "10. /取消报名",
+        "11. /修改龙龙名称 新的龙龙名称",
+        "12. /龙龙名称比较 名称1 名称2",
+        "13. /龙龙大赛冠军",
+        "14. /龙龙大赛帮助",
+    ]
+    await dragon_contest_help_command.finish("\n".join(lines))
+

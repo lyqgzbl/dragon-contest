@@ -10,6 +10,7 @@ from nonebot_plugin_alconna import MsgTarget, Target, UniMessage
 from .utils import generate_comparison_image, run_single_battle
 from .models import DragonContest, DragonContestPlayer, ContestStatus
 
+
 async def run_contest(contest_id: int):
     async with get_session() as sess:
         try:
