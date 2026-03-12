@@ -26,9 +26,13 @@ dev = [
     "ruff>=0.14.0",
 ]
 
+[tool.uv.build-backend]
+source-include = ["src/dragon_contest/migrations/**"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py310"
+exclude = ["src/dragon_contest/migrations/**"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "UP", "C", "T", "PYI", "PT", "Q"]
