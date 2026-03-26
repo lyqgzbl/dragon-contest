@@ -177,6 +177,7 @@ dragon_name_comparison_command = on_alconna(
             example="/龙龙名称比较 玉涛性欲姬 一条咸鱼剑",
         ),
     ),
+    aliases={"龙龙pk"},
     use_cmd_start=True,
     priority=10,
     block=True,

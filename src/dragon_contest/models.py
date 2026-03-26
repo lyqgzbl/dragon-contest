@@ -41,6 +41,4 @@ class DragonContestPlayer(Model):
     user_id: Mapped[str] = mapped_column(index=True)
     dragon_name: Mapped[str] = mapped_column(String(32))
     eliminated: Mapped[bool] = mapped_column(default=False)
-    __table_args__ = (
-        UniqueConstraint("contest_id", "user_id"),
-    )
+    __table_args__ = (UniqueConstraint("contest_id", "user_id"),)

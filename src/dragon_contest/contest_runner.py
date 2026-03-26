@@ -17,7 +17,7 @@ async def run_contest(contest_id: int):
             sess.sync_session.expire_on_commit = False
         except Exception:
             try:
-                sess.expire_on_commit = False   # type: ignore[attr-defined]
+                sess.expire_on_commit = False  # type: ignore[attr-defined]
             except Exception:
                 pass
         contest = await sess.get(DragonContest, contest_id)
@@ -38,14 +38,15 @@ async def run_contest(contest_id: int):
         try:
             bot = get_bot(target.self_id)
         except Exception:
-            logger.opt(colors=True).warning("<yellow>未找到可用的机器人实例,此任务将被跳过</yellow>")
+            logger.opt(colors=True).warning(
+                "<yellow>未找到可用的机器人实例,此任务将被跳过</yellow>"
+            )
             contest.status = ContestStatus.FINISHED.value
             await sess.commit()
             return
         players = (
             await sess.scalars(
-                select(DragonContestPlayer)
-                .where(
+                select(DragonContestPlayer).where(
                     DragonContestPlayer.contest_id == contest_id,
                     DragonContestPlayer.eliminated.is_(False),
                 )
@@ -56,9 +57,9 @@ async def run_contest(contest_id: int):
             contest.status = ContestStatus.FINISHED.value
             await sess.commit()
             return
-        await UniMessage.text(
-            f"龙龙大赛开始,本次参赛人数为: {len(players)}"
-        ).send(target=target, bot=bot)
+        await UniMessage.text(f"龙龙大赛开始,本次参赛人数为: {len(players)}").send(
+            target=target, bot=bot
+        )
         round_no = current_round
         while True:
             should_stop = False
@@ -70,8 +71,7 @@ async def run_contest(contest_id: int):
             contest = contest_now
             alive_players = (
                 await sess.scalars(
-                    select(DragonContestPlayer)
-                    .where(
+                    select(DragonContestPlayer).where(
                         DragonContestPlayer.contest_id == contest_id,
                         DragonContestPlayer.eliminated.is_(False),
                     )
@@ -146,8 +146,7 @@ async def run_contest(contest_id: int):
                 break
         champion = (
             await sess.scalars(
-                select(DragonContestPlayer)
-                .where(
+                select(DragonContestPlayer).where(
                     DragonContestPlayer.contest_id == contest_id,
                     DragonContestPlayer.eliminated.is_(False),
                 )
@@ -155,9 +154,8 @@ async def run_contest(contest_id: int):
         ).first()
         if champion:
             await UniMessage.text(
-                "龙龙大赛圆满结束\n"
-                f"本届龙龙大赛冠军为: {champion.dragon_name}!"
-                ).send(target=target, bot=bot)
+                f"龙龙大赛圆满结束\n本届龙龙大赛冠军为: {champion.dragon_name}!"
+            ).send(target=target, bot=bot)
         contest.status = ContestStatus.FINISHED.value
         sess.add(contest)
         await sess.commit()

@@ -37,6 +37,7 @@ if not plugin_config.dc_github_token:
     openai_handler = None
 else:
     from .openai_client import OpenAIHandler
+
     openai_handler = OpenAIHandler(
         api_key=plugin_config.dc_github_token,
         endpoint="https://models.github.ai/inference",
@@ -46,7 +47,7 @@ else:
     )
 
 
-from .commands import admin as _admin # noqa: F401
+from .commands import admin as _admin  # noqa: F401
 from .commands import signup as _signup  # noqa: F401
 
 

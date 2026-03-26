@@ -15,8 +15,7 @@ class OpenAIHandler:
         top_p: float,
     ):
         self.client = ChatCompletionsClient(
-            endpoint=endpoint,
-            credential=AzureKeyCredential(api_key)
+            endpoint=endpoint, credential=AzureKeyCredential(api_key)
         )
         self.api_key = api_key
         self.endpoint = endpoint

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class Config(BaseModel):
     dc_github_token: str | None = None
     dc_default_dragon_number: int = 32

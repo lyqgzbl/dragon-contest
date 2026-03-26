@@ -61,9 +61,7 @@ async def _handle_create_contest(
         logger.exception(e)
         await dragon_contest_command.finish("创建比赛失败,请查看日志")
     await dragon_contest_command.finish(
-        "已创建龙龙大赛\n"
-        f"时间：{time_str}\n"
-        f"人数限制：{contest_limit}\n"
+        f"已创建龙龙大赛\n时间：{time_str}\n人数限制：{contest_limit}\n"
     )
 
 
@@ -83,9 +81,7 @@ async def _handle_delete_contest(id: int, sess: async_scoped_session):
         await sess.rollback()
         logger.exception(e)
         await dragon_contest_command.finish("删除比赛失败,请查看日志")
-    await dragon_contest_command.finish(
-        f"已删除龙龙大赛（ID: {id}）及其所有参赛数据"
-    )
+    await dragon_contest_command.finish(f"已删除龙龙大赛（ID: {id}）及其所有参赛数据")
 
 
 async def _handle_force_delete_contest(id: int, sess: async_scoped_session):
@@ -135,11 +131,14 @@ async def _handle_contest_status(sess: async_scoped_session):
     contest = await get_current_contest(sess)
     if not contest:
         await dragon_contest_command.finish("当前没有正在进行的龙龙大赛")
-    count = await sess.scalar(
-        select(func.count())
-        .select_from(DragonContestPlayer)
-        .where(DragonContestPlayer.contest_id == contest.id)
-    ) or 0
+    count = (
+        await sess.scalar(
+            select(func.count())
+            .select_from(DragonContestPlayer)
+            .where(DragonContestPlayer.contest_id == contest.id)
+        )
+        or 0
+    )
     phase = "进行中" if contest.status == ContestStatus.RUNNING.value else "报名中"
     await dragon_contest_command.finish(
         "龙龙大赛\n\n"
@@ -196,14 +195,17 @@ async def handle_add_dragon_contest_player(
         await add_dragon_contest_player_command.finish(
             "当前阶段的龙龙大赛已无法进行该操作"
         )
-    count = await sess.scalar(
-        select(func.count())
-        .select_from(DragonContestPlayer)
-        .where(
-            DragonContestPlayer.contest_id == contest.id,
-            DragonContestPlayer.eliminated.is_(False),
+    count = (
+        await sess.scalar(
+            select(func.count())
+            .select_from(DragonContestPlayer)
+            .where(
+                DragonContestPlayer.contest_id == contest.id,
+                DragonContestPlayer.eliminated.is_(False),
+            )
         )
-    ) or 0
+        or 0
+    )
     if count >= contest.limit:
         await add_dragon_contest_player_command.finish("本次龙龙大赛报名人数已满")
     exists = await sess.scalar(
@@ -232,9 +234,7 @@ async def handle_add_dragon_contest_player(
         logger.exception(e)
         await add_dragon_contest_player_command.finish("添加失败,请查看日志")
     await add_dragon_contest_player_command.finish(
-        "已成功添加参赛者\n"
-        f"用户ID：{user_id}\n"
-        f"龙龙名称：{name}"
+        f"已成功添加参赛者\n用户ID：{user_id}\n龙龙名称：{name}"
     )
 
 
@@ -248,8 +248,7 @@ async def handle_remove_dragon_contest_player(user_id: str, sess: async_scoped_s
             "当前阶段的龙龙大赛已无法进行该操作"
         )
     player = await sess.scalar(
-        select(DragonContestPlayer)
-        .where(
+        select(DragonContestPlayer).where(
             DragonContestPlayer.contest_id == contest.id,
             DragonContestPlayer.user_id == user_id,
         )
@@ -263,13 +262,9 @@ async def handle_remove_dragon_contest_player(user_id: str, sess: async_scoped_s
     except Exception as e:
         await sess.rollback()
         logger.exception(e)
-        await remove_dragon_contest_player_command.finish(
-            "移除参赛者失败,请查看日志"
-        )
+        await remove_dragon_contest_player_command.finish("移除参赛者失败,请查看日志")
     await remove_dragon_contest_player_command.finish(
-        "已成功移除参赛者\n"
-        f"用户ID：{user_id}\n"
-        f"龙龙名称：{dragon_name}"
+        f"已成功移除参赛者\n用户ID：{user_id}\n龙龙名称：{dragon_name}"
     )
 
 
@@ -294,8 +289,6 @@ async def handle_list_dragon_contest_player(sess: async_scoped_session):
     for idx, p in enumerate(players, start=1):
         status = "❌ 已淘汰" if p.eliminated else "✅ 在赛"
         lines.append(
-            f"{idx}. {p.dragon_name}\n"
-            f"   用户ID：{p.user_id}\n"
-            f"   状态：{status}\n"
+            f"{idx}. {p.dragon_name}\n   用户ID：{p.user_id}\n   状态：{status}\n"
         )
     await list_dragon_contest_player_command.finish("\n".join(lines))

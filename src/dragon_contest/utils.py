@@ -39,6 +39,7 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
     def _clean_text(value: object) -> str:
         text = str(value or "").strip()
         return " ".join(text.splitlines()).strip()
+
     def _normalize_columns(value: object) -> list[str]:
         columns: list[str]
         if isinstance(value, list):
@@ -48,6 +49,7 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
         if len(columns) < 3:
             columns += [""] * (3 - len(columns))
         return columns[:3]
+
     def _normalize_sections(value: object) -> list[dict]:
         if not isinstance(value, list):
             return []
@@ -78,6 +80,7 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
                     rows.append(cells)
             normalized.append({"title": section_title, "rows": rows})
         return normalized
+
     title = "龙龙大赛"
     subtitle = _clean_text(compare_data.get("subtitle", ""))
     columns = _normalize_columns(compare_data.get("columns"))
@@ -99,8 +102,10 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
                 ],
             }
         ]
+
     def _e(text: str) -> str:
         return html.escape(text, quote=True)
+
     parts: list[str] = []
     if title:
         parts.append(f"<h1>{_e(title)}</h1>")
@@ -229,6 +234,7 @@ async def on_contest_start(contest_id: int):
             return
     try:
         from .contest_runner import run_contest
+
         await run_contest(contest_id)
     except Exception:
         logger.exception("启动龙龙大赛失败")
@@ -260,7 +266,9 @@ async def run_single_battle(
             "columns": columns,
             "sections": [{"title": "", "rows": rows}],
         }
+
     from . import openai_handler
+
     if openai_handler is None:
         winner, loser = random.sample([p1, p2], 2)
         winner_flag = "p1" if winner is p1 else "p2"
@@ -306,7 +314,7 @@ async def run_single_battle(
         "content 是一段较长吐槽/短评（最少100字最多150字）\n"
         "- 所有点评必须与 winner 的胜负关系一致，不能自相矛盾\n"
         "\n输出示例（仅示例结构，不要照抄内容）：\n"
-        '{'
+        "{"
         '"winner":"p1",'
         '"reason":"(100~200字终局宣判)",'
         '"title":"龙龙大赛",'
@@ -318,9 +326,9 @@ async def run_single_battle(
         '    {"title":"","content":"性能"},'
         '    {"title":"高效执行","content":"..."},'
         '    {"title":"略显吃力","content":"..."}'
-        '  ]]'
-        '}]'
-        '}'
+        "  ]]"
+        "}]"
+        "}"
     )
     user_prompt = (
         f"第 {round} 回合对战：\n"
@@ -401,8 +409,7 @@ async def restore_contest_start_jobs():
     async with get_session() as sess:
         now_ts = int(datetime.now().timestamp())
         contests = await sess.scalars(
-            select(DragonContest)
-            .where(
+            select(DragonContest).where(
                 DragonContest.start_ts > now_ts,
                 DragonContest.status == ContestStatus.SIGNUP.value,
             )

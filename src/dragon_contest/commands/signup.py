@@ -36,11 +36,14 @@ async def handle_join_contest(
     contest_id = int(contest.id)
     contest_limit = int(contest.limit)
     contest_start_ts = int(contest.start_ts)
-    current_count = await sess.scalar(
-        select(func.count())
-        .select_from(DragonContestPlayer)
-        .where(DragonContestPlayer.contest_id == contest_id)
-    ) or 0
+    current_count = (
+        await sess.scalar(
+            select(func.count())
+            .select_from(DragonContestPlayer)
+            .where(DragonContestPlayer.contest_id == contest_id)
+        )
+        or 0
+    )
     if current_count >= contest_limit:
         await join_dragon_contest_command.finish("本次龙龙大赛报名人数已满")
     player = DragonContestPlayer(
@@ -60,9 +63,7 @@ async def handle_join_contest(
         await join_dragon_contest_command.finish("加入比赛失败,请查看日志")
     dt = datetime.fromtimestamp(contest_start_ts)
     await join_dragon_contest_command.finish(
-        "报名成功！\n"
-        f"龙龙名称：{name}\n"
-        f"比赛时间：{dt:%Y-%m-%d %H:%M}"
+        f"报名成功！\n龙龙名称：{name}\n比赛时间：{dt:%Y-%m-%d %H:%M}"
     )
 
 
@@ -111,8 +112,7 @@ async def handle_revise_dragon_name(
             "距离比赛开始不足10分钟,无法修改龙龙名称"
         )
     player = await sess.scalar(
-        select(DragonContestPlayer)
-        .where(
+        select(DragonContestPlayer).where(
             DragonContestPlayer.contest_id == contest_id,
             DragonContestPlayer.user_id == str(event.get_user_id()),
         )
@@ -128,9 +128,7 @@ async def handle_revise_dragon_name(
         await revise_dragon_name_command.finish("修改龙龙名称失败,请查看日志")
     dt = datetime.fromtimestamp(contest_start_ts)
     await revise_dragon_name_command.finish(
-        "龙龙名称修改成功\n"
-        f"新名称：{name}\n"
-        f"比赛时间：{dt:%Y-%m-%d %H:%M}"
+        f"龙龙名称修改成功\n新名称：{name}\n比赛时间：{dt:%Y-%m-%d %H:%M}"
     )
 
 
@@ -170,9 +168,7 @@ async def handle_dragon_contest_champion(sess: async_scoped_session):
         champion_data = await get_contest_champion(sess)
         if not champion_data:
             await dragon_contest_champion_command.send("暂无龙龙大赛冠军数据")
-        await dragon_contest_champion_command.send(
-            f"历史龙龙大赛冠军：{champion_data}"
-        )
+        await dragon_contest_champion_command.send(f"历史龙龙大赛冠军：{champion_data}")
     except Exception as e:
         logger.exception(e)
         await dragon_contest_champion_command.finish("查询龙龙大赛冠军失败,请查看日志")
@@ -200,4 +196,3 @@ async def handle_dragon_contest_help():
         "14. /龙龙大赛帮助",
     ]
     await dragon_contest_help_command.finish("\n".join(lines))
-
