@@ -1,4 +1,5 @@
 from datetime import datetime
+import contextlib
 
 from arclet.alconna import Arparma
 from nonebot.log import logger
@@ -88,10 +89,8 @@ async def _handle_force_delete_contest(id: int, sess: async_scoped_session):
     contest = await sess.get(DragonContest, id)
     if not contest:
         await dragon_contest_command.finish(f"未找到ID为 {id} 的龙龙大赛")
-    try:
+    with contextlib.suppress(Exception):
         scheduler.remove_job(f"dragon_contest_start_{id}")
-    except Exception:
-        pass
     await sess.execute(
         delete(DragonContestPlayer).where(DragonContestPlayer.contest_id == id)
     )

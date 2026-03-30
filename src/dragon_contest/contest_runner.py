@@ -1,5 +1,6 @@
 import asyncio
 import random
+import contextlib
 
 from sqlalchemy import func, select
 from nonebot import get_bot
@@ -13,13 +14,8 @@ from .models import DragonContest, DragonContestPlayer, ContestStatus
 
 async def run_contest(contest_id: int):
     async with get_session() as sess:
-        try:
+        with contextlib.suppress(AttributeError, Exception):
             sess.sync_session.expire_on_commit = False
-        except Exception:
-            try:
-                sess.expire_on_commit = False  # type: ignore[attr-defined]
-            except Exception:
-                pass
         contest = await sess.get(DragonContest, contest_id)
         if not contest:
             return

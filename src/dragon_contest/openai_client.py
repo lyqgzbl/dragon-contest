@@ -28,7 +28,8 @@ class OpenAIHandler:
         messages: Sequence[ChatRequestMessage | Mapping[str, Any]],
     ) -> str:
         request_messages = cast(list[ChatRequestMessage], list(messages))
-        response = await self.client.complete(
+        client = cast(Any, self.client)
+        response = await client.complete(
             messages=request_messages,
             model=self.model_name,
             temperature=self.temperature,

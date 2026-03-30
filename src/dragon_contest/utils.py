@@ -4,6 +4,7 @@ import random
 import html
 from datetime import datetime
 from pathlib import Path
+from typing import cast
 
 from sqlalchemy import select
 from nonebot.log import logger
@@ -41,11 +42,7 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
         return " ".join(text.splitlines()).strip()
 
     def _normalize_columns(value: object) -> list[str]:
-        columns: list[str]
-        if isinstance(value, list):
-            columns = [_clean_text(v) for v in value]
-        else:
-            columns = []
+        columns = [_clean_text(v) for v in value] if isinstance(value, list) else []
         if len(columns) < 3:
             columns += [""] * (3 - len(columns))
         return columns[:3]
@@ -57,8 +54,9 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
         for section in value:
             if not isinstance(section, dict):
                 continue
-            section_title = _clean_text(section.get("title", ""))
-            rows_value = section.get("rows", [])
+            section_data = cast(dict[str, object], section)
+            section_title = _clean_text(section_data.get("title", ""))
+            rows_value = section_data.get("rows", [])
             rows: list[list[dict]] = []
             if isinstance(rows_value, list):
                 for row in rows_value:

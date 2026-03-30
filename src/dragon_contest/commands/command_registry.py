@@ -217,16 +217,16 @@ dragon_contest_help_command = on_alconna(
 
 
 __all__ = [
-    "plugin_config",
-    "is_enable",
-    "dragon_contest_command",
     "add_dragon_contest_player_command",
-    "remove_dragon_contest_player_command",
-    "list_dragon_contest_player_command",
-    "join_dragon_contest_command",
     "cancel_dragon_contest_command",
-    "revise_dragon_name_command",
-    "dragon_name_comparison_command",
     "dragon_contest_champion_command",
+    "dragon_contest_command",
     "dragon_contest_help_command",
+    "dragon_name_comparison_command",
+    "is_enable",
+    "join_dragon_contest_command",
+    "list_dragon_contest_player_command",
+    "plugin_config",
+    "remove_dragon_contest_player_command",
+    "revise_dragon_name_command",
 ]

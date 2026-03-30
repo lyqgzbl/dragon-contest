@@ -52,9 +52,9 @@ from .commands import signup as _signup  # noqa: F401
 
 
 __all__ = [
+    "cancel_dragon_contest_command",
     "dragon_contest_command",
     "join_dragon_contest_command",
-    "cancel_dragon_contest_command",
-    "revise_dragon_name_command",
     "openai_handler",
+    "revise_dragon_name_command",
 ]
