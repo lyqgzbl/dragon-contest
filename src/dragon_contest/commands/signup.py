@@ -142,6 +142,9 @@ async def handle_dragon_name_comparison(name1: str, name2: str):
         await dragon_name_comparison_command.finish("龙龙名称不能相同")
     p1 = DragonContestPlayer(contest_id=0, user_id="comparison_p1", dragon_name=name1)
     p2 = DragonContestPlayer(contest_id=0, user_id="comparison_p2", dragon_name=name2)
+    winner = None
+    loser = None
+    reason = "未知"
     try:
         winner, loser, reason, compare_data = await run_single_battle(p1, p2, 1)
         payload = dict(compare_data or {})
@@ -156,9 +159,9 @@ async def handle_dragon_name_comparison(name1: str, name2: str):
             "龙龙名称比较\n"
             f"名称1：{name1}\n"
             f"名称2：{name2}\n"
-            f"胜者：{winner.dragon_name if 'winner' in locals() else '未知'}\n"
-            f"败者：{loser.dragon_name if 'loser' in locals() else '未知'}\n"
-            f"理由：{reason if 'reason' in locals() else '未知'}"
+            f"胜者：{winner.dragon_name if winner else '未知'}\n"
+            f"败者：{loser.dragon_name if loser else '未知'}\n"
+            f"理由：{reason}"
         )
 
 

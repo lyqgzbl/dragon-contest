@@ -121,3 +121,10 @@ h1 {
 .cmp-table tbody tr:nth-child(even) .cmp-cell {
   background: #f2f2f2;
 }
+
+.cmp-footer {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 12px;
+  color: #6b7280;
+}

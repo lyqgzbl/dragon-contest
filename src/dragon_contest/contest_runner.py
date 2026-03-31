@@ -52,6 +52,8 @@ async def _send_battle_result(
     *,
     p1: DragonContestPlayer,
     p2: DragonContestPlayer,
+    round_no: int,
+    battle_no: int,
     winner: DragonContestPlayer,
     loser: DragonContestPlayer,
     reason: str,
@@ -59,9 +61,15 @@ async def _send_battle_result(
     target: MsgTarget,
     bot,
 ) -> None:
+    await UniMessage.text(
+        f"第 {round_no} 轮·第 {battle_no}：{p1.dragon_name} vs {p2.dragon_name}"
+    ).send(target=target, bot=bot)
     try:
         payload = dict(compare_data or {})
         payload["title"] = "龙龙大赛"
+        payload["subtitle"] = (
+            f"第 {round_no} 轮·第 {battle_no} 场：{p1.dragon_name} vs {p2.dragon_name}"
+        )
         payload["columns"] = [
             "维度",
             winner.dragon_name,
@@ -95,6 +103,7 @@ async def _run_round(
     target: MsgTarget,
     bot,
 ) -> bool:
+    battle_no = 1
     while len(alive_players) >= 2:
         p1 = alive_players.pop(random.randrange(len(alive_players)))
         p2 = alive_players.pop(random.randrange(len(alive_players)))
@@ -104,6 +113,8 @@ async def _run_round(
         await _send_battle_result(
             p1=p1,
             p2=p2,
+            round_no=round_no,
+            battle_no=battle_no,
             winner=winner,
             loser=loser,
             reason=reason,
@@ -111,6 +122,7 @@ async def _run_round(
             target=target,
             bot=bot,
         )
+        battle_no += 1
         await sess.commit()
         if await _contest_stopped(sess, contest_id):
             return True

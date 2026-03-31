@@ -166,11 +166,17 @@ def _cmp_build_html(
         parts.append("</table>")
         parts.append("</div>")
     parts.append("</div>")
+    footer_text = _cmp_escape("Designed by lyqgzbl & Powered by dragon-contest")
+    parts.append(f'<div class="cmp-footer">{footer_text}</div>')
     return "\n".join(parts)
 
 
 async def _cmp_render_markdown(markdown: str) -> bytes:
-    css_file = Path(__file__).parent / "templates" / "compare.css"
+    css_file = (
+        Path(__file__).parent
+        / "templates"
+        / ("compare_dark.css" if plugin_config.dc_image_is_dark else "compare.css")
+    )
     kwargs: dict = {"width": 1000}
     if css_file.exists():
         kwargs["css_path"] = str(css_file)
