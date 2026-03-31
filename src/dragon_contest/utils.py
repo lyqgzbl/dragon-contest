@@ -26,6 +26,157 @@ driver = get_driver()
 plugin_config = get_plugin_config(Config)
 
 
+def _cmp_clean_text(value: object) -> str:
+    text = str(value or "").strip()
+    return " ".join(text.splitlines()).strip()
+
+
+def _cmp_escape(text: str) -> str:
+    return html.escape(text, quote=True)
+
+
+def _cmp_normalize_columns(value: object) -> list[str]:
+    columns = [_cmp_clean_text(v) for v in value] if isinstance(value, list) else []
+    if len(columns) < 3:
+        columns += [""] * (3 - len(columns))
+    return columns[:3]
+
+
+def _cmp_normalize_cell(cell: object) -> dict[str, str]:
+    if isinstance(cell, dict):
+        cell_dict = cast(dict[str, object], cell)
+        return {
+            "title": _cmp_clean_text(cell_dict.get("title", "")),
+            "content": _cmp_clean_text(cell_dict.get("content", "")),
+        }
+    return {"title": "", "content": _cmp_clean_text(cell)}
+
+
+def _cmp_normalize_row(row: object) -> list[dict[str, str]]:
+    if not isinstance(row, list):
+        return []
+    cells = [_cmp_normalize_cell(cell) for cell in row[:3]]
+    if len(cells) < 3:
+        cells += [{"title": "", "content": ""}] * (3 - len(cells))
+    return cells
+
+
+def _cmp_normalize_sections(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    sections: list[dict[str, object]] = []
+    for section in value:
+        if not isinstance(section, dict):
+            continue
+        section_data = cast(dict[str, object], section)
+        rows_value = section_data.get("rows", [])
+        rows = []
+        if isinstance(rows_value, list):
+            for row in rows_value:
+                normalized = _cmp_normalize_row(row)
+                if normalized:
+                    rows.append(normalized)
+        sections.append(
+            {
+                "title": _cmp_clean_text(section_data.get("title", "")),
+                "rows": rows,
+            }
+        )
+    return sections
+
+
+def _cmp_default_sections(compare_data: dict) -> list[dict[str, object]]:
+    winner = _cmp_clean_text(compare_data.get("winner", ""))
+    reason = _cmp_clean_text(compare_data.get("reason", ""))
+    return [
+        {
+            "title": "",
+            "rows": [
+                [
+                    {"title": "", "content": "裁判裁决"},
+                    {"title": "获胜者", "content": winner},
+                    {"title": "失败者", "content": reason},
+                ]
+            ],
+        }
+    ]
+
+
+def _cmp_render_header(parts: list[str], title: str, subtitle: str):
+    if title:
+        parts.append(f"<h1>{_cmp_escape(title)}</h1>")
+    if subtitle:
+        parts.append(
+            f'<h2><span class="cmp-subtitle">{_cmp_escape(subtitle)}</span></h2>'
+        )
+
+
+def _cmp_render_table_head(parts: list[str], columns: list[str]):
+    parts.append("<thead><tr>")
+    for idx, col in enumerate(columns):
+        col_text = _cmp_escape(_cmp_clean_text(col))
+        parts.append(
+            f'<th class="cmp-head cmp-col-{idx}">{col_text}</th>'
+        )
+    parts.append("</tr></thead>")
+
+
+def _cmp_render_rows(parts: list[str], rows: object):
+    parts.append("<tbody>")
+    if isinstance(rows, list):
+        for row in rows:
+            cells = _cmp_normalize_row(row)
+            if not cells:
+                continue
+            parts.append("<tr>")
+            for idx, cell in enumerate(cells):
+                parts.append(f'<td class="cmp-cell cmp-col-{idx}">')
+                parts.append(
+                    f'<div class="cmp-cell-title">{_cmp_escape(cell["title"])}</div>'
+                )
+                parts.append(
+                    '<div class="cmp-cell-content">'
+                    f"{_cmp_escape(cell['content'])}"
+                    "</div>"
+                )
+                parts.append("</td>")
+            parts.append("</tr>")
+    parts.append("</tbody>")
+
+
+def _cmp_build_html(
+    *,
+    title: str,
+    subtitle: str,
+    columns: list[str],
+    sections: list[dict[str, object]],
+) -> str:
+    parts: list[str] = []
+    _cmp_render_header(parts, title, subtitle)
+    parts.append('<div class="cmp-container">')
+    for section in sections:
+        parts.append('<div class="cmp-card">')
+        section_title = _cmp_clean_text(section.get("title", ""))
+        if section_title:
+            title_html = _cmp_escape(section_title)
+            parts.append(f'<div class="cmp-card-title">{title_html}</div>')
+        parts.append('<table class="cmp-table">')
+        _cmp_render_table_head(parts, columns)
+        _cmp_render_rows(parts, section.get("rows", []))
+        parts.append("</table>")
+        parts.append("</div>")
+    parts.append("</div>")
+    return "\n".join(parts)
+
+
+async def _cmp_render_markdown(markdown: str) -> bytes:
+    css_file = Path(__file__).parent / "templates" / "compare.css"
+    kwargs: dict = {"width": 1000}
+    if css_file.exists():
+        kwargs["css_path"] = str(css_file)
+    return await md_to_pic(markdown, **kwargs)
+
+
 async def get_contest_champion(sess: async_scoped_session) -> str | None:
     champion = await sess.scalar(
         select(DragonContestPlayer.dragon_name)
@@ -37,126 +188,26 @@ async def get_contest_champion(sess: async_scoped_session) -> str | None:
 
 
 async def generate_comparison_image(compare_data: dict) -> bytes:
-    def _clean_text(value: object) -> str:
-        text = str(value or "").strip()
-        return " ".join(text.splitlines()).strip()
-
-    def _normalize_columns(value: object) -> list[str]:
-        columns = [_clean_text(v) for v in value] if isinstance(value, list) else []
-        if len(columns) < 3:
-            columns += [""] * (3 - len(columns))
-        return columns[:3]
-
-    def _normalize_sections(value: object) -> list[dict]:
-        if not isinstance(value, list):
-            return []
-        normalized: list[dict] = []
-        for section in value:
-            if not isinstance(section, dict):
-                continue
-            section_data = cast(dict[str, object], section)
-            section_title = _clean_text(section_data.get("title", ""))
-            rows_value = section_data.get("rows", [])
-            rows: list[list[dict]] = []
-            if isinstance(rows_value, list):
-                for row in rows_value:
-                    if not isinstance(row, list):
-                        continue
-                    cells: list[dict] = []
-                    for cell in row[:3]:
-                        if isinstance(cell, dict):
-                            cells.append(
-                                {
-                                    "title": _clean_text(cell.get("title", "")),
-                                    "content": _clean_text(cell.get("content", "")),
-                                }
-                            )
-                        else:
-                            cells.append({"title": "", "content": _clean_text(cell)})
-                    if len(cells) < 3:
-                        cells += [{"title": "", "content": ""}] * (3 - len(cells))
-                    rows.append(cells)
-            normalized.append({"title": section_title, "rows": rows})
-        return normalized
-
     title = "龙龙大赛"
-    subtitle = _clean_text(compare_data.get("subtitle", ""))
-    columns = _normalize_columns(compare_data.get("columns"))
-    sections = _normalize_sections(compare_data.get("sections"))
+    subtitle = _cmp_clean_text(compare_data.get("subtitle", ""))
+    columns = _cmp_normalize_columns(compare_data.get("columns"))
+    sections = _cmp_normalize_sections(compare_data.get("sections"))
     if not any(columns):
         columns = ["维度", "获胜者", "失败者"]
     if not sections:
-        winner = _clean_text(compare_data.get("winner", ""))
-        reason = _clean_text(compare_data.get("reason", ""))
-        sections = [
-            {
-                "title": "",
-                "rows": [
-                    [
-                        {"title": "", "content": "裁判裁决"},
-                        {"title": "获胜者", "content": winner},
-                        {"title": "失败者", "content": reason},
-                    ]
-                ],
-            }
-        ]
+        sections = _cmp_default_sections(compare_data)
 
-    def _e(text: str) -> str:
-        return html.escape(text, quote=True)
-
-    parts: list[str] = []
-    if title:
-        parts.append(f"<h1>{_e(title)}</h1>")
-    if subtitle:
-        parts.append(f'<h2><span class="cmp-subtitle">{_e(subtitle)}</span></h2>')
-    parts.append('<div class="cmp-container">')
-    for section in sections:
-        parts.append('<div class="cmp-card">')
-        section_title = _clean_text(section.get("title", ""))
-        if section_title:
-            parts.append(f'<div class="cmp-card-title">{_e(section_title)}</div>')
-        parts.append('<table class="cmp-table">')
-        parts.append("<thead><tr>")
-        for idx, col in enumerate(columns):
-            parts.append(
-                f'<th class="cmp-head cmp-col-{idx}">{_e(_clean_text(col))}</th>'
-            )
-        parts.append("</tr></thead>")
-        parts.append("<tbody>")
-        rows = section.get("rows", [])
-        if isinstance(rows, list):
-            for row in rows:
-                if not isinstance(row, list):
-                    continue
-                parts.append("<tr>")
-                for idx, cell in enumerate(row[:3]):
-                    cell_title = ""
-                    cell_content = ""
-                    if isinstance(cell, dict):
-                        cell_title = _clean_text(cell.get("title", ""))
-                        cell_content = _clean_text(cell.get("content", ""))
-                    else:
-                        cell_content = _clean_text(cell)
-                    parts.append(f'<td class="cmp-cell cmp-col-{idx}">')
-                    parts.append(f'<div class="cmp-cell-title">{_e(cell_title)}</div>')
-                    parts.append(
-                        f'<div class="cmp-cell-content">{_e(cell_content)}</div>'
-                    )
-                    parts.append("</td>")
-                parts.append("</tr>")
-        parts.append("</tbody></table>")
-        parts.append("</div>")
-    parts.append("</div>")
-    css_file = Path(__file__).parent / "templates" / "compare.css"
-    kwargs: dict = {"width": 1000}
-    if css_file.exists():
-        kwargs["css_path"] = str(css_file)
+    html_content = _cmp_build_html(
+        title=title,
+        subtitle=subtitle,
+        columns=columns,
+        sections=sections,
+    )
     try:
-        return await md_to_pic("\n".join(parts), **kwargs)
+        return await _cmp_render_markdown(html_content)
     except Exception:
         logger.exception("生成对比图片失败")
-        fallback = "<h1>对比图生成失败</h1>"
-        return await md_to_pic(fallback, **kwargs)
+        return await _cmp_render_markdown("<h1>对比图生成失败</h1>")
 
 
 async def get_signup_contest(sess: async_scoped_session) -> DragonContest | None:

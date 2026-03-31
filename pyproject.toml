@@ -14,6 +14,7 @@ dependencies = [
     "sqlalchemy<3.0.0",
     "azure-ai-inference",
     "azure-core",
+    "ty>=0.0.26",
 ]
 
 
@@ -36,19 +37,23 @@ exclude = ["src/dragon_contest/migrations/**"]
 
 [tool.ruff.lint]
 select = [
+    "I",
     "E", "W", "F",
     "UP",
     "B",
-    "C4",
+    "C4", "C90",
     "SIM",
     "PERF",
-    "RUF",
+    "RUF", "RUF100",
     "PT",
     "Q",
 ]
 
-ignore = ["E402", "B008", "RUF001"]
+ignore = ["I001","E402", "B008", "RUF001"]
 fixable = ["ALL"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.format]
 quote-style = "double"
