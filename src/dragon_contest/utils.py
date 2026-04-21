@@ -115,9 +115,7 @@ def _cmp_render_table_head(parts: list[str], columns: list[str]):
     parts.append("<thead><tr>")
     for idx, col in enumerate(columns):
         col_text = _cmp_escape(_cmp_clean_text(col))
-        parts.append(
-            f'<th class="cmp-head cmp-col-{idx}">{col_text}</th>'
-        )
+        parts.append(f'<th class="cmp-head cmp-col-{idx}">{col_text}</th>')
     parts.append("</tr></thead>")
 
 

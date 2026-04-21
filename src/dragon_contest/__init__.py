@@ -41,7 +41,7 @@ else:
     openai_handler = OpenAIHandler(
         api_key=plugin_config.dc_github_token,
         endpoint="https://models.github.ai/inference",
-        model_name="openai/gpt-4.1-mini",
+        model_name=plugin_config.dc_ai_model_name,
         temperature=0.7,
         top_p=0.9,
     )

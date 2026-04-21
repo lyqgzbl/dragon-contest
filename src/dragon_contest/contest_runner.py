@@ -186,7 +186,7 @@ async def _run_contest_rounds(
     round_no: int,
     target: MsgTarget,
     bot,
-)->DragonContest | None:
+) -> DragonContest | None:
     latest_contest = await sess.get(DragonContest, contest_id)
     while latest_contest and latest_contest.status == ContestStatus.RUNNING.value:
         alive_players = await _get_alive_players(sess, contest_id)
