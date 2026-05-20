@@ -3,7 +3,7 @@ from datetime import datetime
 from nonebot.adapters import Event
 from nonebot.log import logger
 from nonebot_plugin_alconna import UniMessage
-from sqlalchemy import delete, select, func
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from nonebot_plugin_orm import async_scoped_session
 
@@ -11,12 +11,14 @@ from ..models import DragonContestPlayer
 from ..utils import (
     generate_comparison_image,
     get_signup_contest,
+    get_contest_signup_lock,
     run_single_battle,
     get_contest_champion,
 )
 from ..commands.command_registry import (
     cancel_dragon_contest_command,
     join_dragon_contest_command,
+    plugin_config,
     revise_dragon_name_command,
     dragon_name_comparison_command,
     dragon_contest_champion_command,
@@ -36,31 +38,32 @@ async def handle_join_contest(
     contest_id = int(contest.id)
     contest_limit = int(contest.limit)
     contest_start_ts = int(contest.start_ts)
-    current_count = (
-        await sess.scalar(
-            select(func.count())
-            .select_from(DragonContestPlayer)
-            .where(DragonContestPlayer.contest_id == contest_id)
+    async with get_contest_signup_lock(contest_id):
+        current_count = (
+            await sess.scalar(
+                select(func.count())
+                .select_from(DragonContestPlayer)
+                .where(DragonContestPlayer.contest_id == contest_id)
+            )
+            or 0
         )
-        or 0
-    )
-    if current_count >= contest_limit:
-        await join_dragon_contest_command.finish("本次龙龙大赛报名人数已满")
-    player = DragonContestPlayer(
-        contest_id=contest_id,
-        user_id=str(event.get_user_id()),
-        dragon_name=name,
-    )
-    sess.add(player)
-    try:
-        await sess.commit()
-    except IntegrityError:
-        await sess.rollback()
-        await join_dragon_contest_command.finish("你已经报名过本次龙龙大赛")
-    except Exception as e:
-        await sess.rollback()
-        logger.exception(e)
-        await join_dragon_contest_command.finish("加入比赛失败,请查看日志")
+        if current_count >= contest_limit:
+            await join_dragon_contest_command.finish("本次龙龙大赛报名人数已满")
+        player = DragonContestPlayer(
+            contest_id=contest_id,
+            user_id=str(event.get_user_id()),
+            dragon_name=name,
+        )
+        sess.add(player)
+        try:
+            await sess.commit()
+        except IntegrityError:
+            await sess.rollback()
+            await join_dragon_contest_command.finish("你已经报名过本次龙龙大赛")
+        except Exception as e:
+            await sess.rollback()
+            logger.exception(e)
+            await join_dragon_contest_command.finish("加入比赛失败,请查看日志")
     dt = datetime.fromtimestamp(contest_start_ts)
     await join_dragon_contest_command.finish(
         f"报名成功！\n龙龙名称：{name}\n比赛时间：{dt:%Y-%m-%d %H:%M}"
@@ -75,18 +78,15 @@ async def handle_cancel_contest(
     contest = await get_signup_contest(sess)
     if not contest:
         await cancel_dragon_contest_command.finish("当前阶段的龙龙大赛已无法进行该操作")
-    stmt = (
-        delete(DragonContestPlayer)
-        .where(
+    player = await sess.scalar(
+        select(DragonContestPlayer).where(
             DragonContestPlayer.contest_id == contest.id,
             DragonContestPlayer.user_id == str(event.get_user_id()),
         )
-        .returning(DragonContestPlayer.id)
     )
-    result = await sess.execute(stmt)
-    deleted_ids = result.scalars().all()
-    if not deleted_ids:
+    if not player:
         await cancel_dragon_contest_command.finish("你尚未报名本次龙龙大赛")
+    await sess.delete(player)
     try:
         await sess.commit()
     except Exception as e:
@@ -107,9 +107,13 @@ async def handle_revise_dragon_name(
         await revise_dragon_name_command.finish("当前阶段的龙龙大赛已无法进行该操作")
     contest_id = int(contest.id)
     contest_start_ts = int(contest.start_ts)
-    if datetime.now().timestamp() > contest_start_ts - 600:
+    if (
+        datetime.now().timestamp()
+        > contest_start_ts - plugin_config.dc_signup_end_before_seconds
+    ):
         await revise_dragon_name_command.finish(
-            "距离比赛开始不足10分钟,无法修改龙龙名称"
+            f"距离比赛开始不足{plugin_config.dc_signup_end_before_seconds // 60}分钟,"
+            "无法修改龙龙名称"
         )
     player = await sess.scalar(
         select(DragonContestPlayer).where(
@@ -170,8 +174,10 @@ async def handle_dragon_contest_champion(sess: async_scoped_session):
     try:
         champion_data = await get_contest_champion(sess)
         if not champion_data:
-            await dragon_contest_champion_command.send("暂无龙龙大赛冠军数据")
-        await dragon_contest_champion_command.send(f"历史龙龙大赛冠军：{champion_data}")
+            await dragon_contest_champion_command.finish("暂无龙龙大赛冠军数据")
+        await dragon_contest_champion_command.finish(
+            f"历史龙龙大赛冠军：{champion_data}"
+        )
     except Exception as e:
         logger.exception(e)
         await dragon_contest_champion_command.finish("查询龙龙大赛冠军失败,请查看日志")

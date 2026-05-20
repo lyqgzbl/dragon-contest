@@ -1,10 +1,11 @@
+import asyncio
 import re
 import json
 import random
 import html
 from datetime import datetime
 from pathlib import Path
-from typing import cast
+from typing import Protocol, cast
 
 from sqlalchemy import select
 from nonebot.log import logger
@@ -24,6 +25,19 @@ from .models import (
 
 driver = get_driver()
 plugin_config = get_plugin_config(Config)
+_contest_signup_locks: dict[int, asyncio.Lock] = {}
+
+
+class BattlePlayer(Protocol):
+    dragon_name: str
+
+
+def get_contest_signup_lock(contest_id: int) -> asyncio.Lock:
+    lock = _contest_signup_locks.get(contest_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _contest_signup_locks[contest_id] = lock
+    return lock
 
 
 def _cmp_clean_text(value: object) -> str:
@@ -185,14 +199,17 @@ async def get_contest_champion(sess: async_scoped_session) -> str | None:
     champion = await sess.scalar(
         select(DragonContestPlayer.dragon_name)
         .join(DragonContest, DragonContest.id == DragonContestPlayer.contest_id)
-        .where(DragonContest.status == ContestStatus.FINISHED.value)
+        .where(
+            DragonContest.status == ContestStatus.FINISHED.value,
+            DragonContestPlayer.eliminated.is_(False),
+        )
         .order_by(DragonContest.start_ts.desc())
     )
     return champion
 
 
 async def generate_comparison_image(compare_data: dict) -> bytes:
-    title = "龙龙大赛"
+    title = _cmp_clean_text(compare_data.get("title", "龙龙大赛")) or "龙龙大赛"
     subtitle = _cmp_clean_text(compare_data.get("subtitle", ""))
     columns = _cmp_normalize_columns(compare_data.get("columns"))
     sections = _cmp_normalize_sections(compare_data.get("sections"))
@@ -217,10 +234,11 @@ async def generate_comparison_image(compare_data: dict) -> bytes:
 async def get_signup_contest(sess: async_scoped_session) -> DragonContest | None:
     now_ts = int(datetime.now().timestamp())
     signup_end = now_ts + plugin_config.dc_signup_before_seconds
+    signup_close = now_ts + plugin_config.dc_signup_end_before_seconds
     return await sess.scalar(
         select(DragonContest)
         .where(
-            DragonContest.start_ts >= now_ts,
+            DragonContest.start_ts > signup_close,
             DragonContest.start_ts <= signup_end,
             DragonContest.status == ContestStatus.SIGNUP.value,
         )
@@ -294,8 +312,8 @@ async def on_contest_start(contest_id: int):
 
 
 async def run_single_battle(
-    p1: DragonContestPlayer,
-    p2: DragonContestPlayer,
+    p1: BattlePlayer,
+    p2: BattlePlayer,
     round: int,
 ):
     def _default_compare_data(*, winner_flag: str, reason: str) -> dict:
@@ -459,20 +477,20 @@ async def run_single_battle(
 
 @driver.on_startup
 async def restore_contest_start_jobs():
+    now_ts = int(datetime.now().timestamp())
     async with get_session() as sess:
-        now_ts = int(datetime.now().timestamp())
         contests = await sess.scalars(
             select(DragonContest).where(
-                DragonContest.start_ts > now_ts,
                 DragonContest.status == ContestStatus.SIGNUP.value,
             )
         )
-        for contest in contests:
-            if contest.start_ts <= now_ts:
-                continue
-            register_contest_start_job(contest.id, contest.start_ts)
-            logger.info(
-                f"已恢复龙龙大赛启动任务: \
-                contest_id={contest.id}, \
-                start_ts={contest.start_ts}"
-            )
+        pending_contests = [(contest.id, contest.start_ts) for contest in contests]
+    for contest_id, start_ts in pending_contests:
+        if start_ts <= now_ts:
+            logger.info(f"发现过期未启动的龙龙大赛，立即启动: contest_id={contest_id}")
+            await on_contest_start(contest_id)
+            continue
+        register_contest_start_job(contest_id, start_ts)
+        logger.info(
+            f"已恢复龙龙大赛启动任务: contest_id={contest_id}, start_ts={start_ts}"
+        )

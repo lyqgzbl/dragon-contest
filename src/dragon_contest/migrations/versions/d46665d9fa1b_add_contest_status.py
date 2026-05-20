@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 revision: str = 'd46665d9fa1b'
 down_revision: str | Sequence[str] | None = None
-branch_labels: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = ("dragon_contest",)
 depends_on: str | Sequence[str] | None = None
 
 
@@ -31,7 +31,7 @@ def upgrade(name: str = "") -> None:
     sa.Column('current_round', sa.Integer(), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dragon_contest')),
-    info={'bind_key': 'drago_contest'}
+    info={'bind_key': 'dragon_contest'}
     )
     with op.batch_alter_table('dragon_contest', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_dragon_contest_start_ts'), ['start_ts'], unique=False)
@@ -41,7 +41,7 @@ def upgrade(name: str = "") -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('default_limit', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dragon_contest_config')),
-    info={'bind_key': 'drago_contest'}
+    info={'bind_key': 'dragon_contest'}
     )
     op.create_table('dragon_contest_player',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -52,7 +52,7 @@ def upgrade(name: str = "") -> None:
     sa.ForeignKeyConstraint(['contest_id'], ['dragon_contest.id'], name=op.f('fk_dragon_contest_player_contest_id_dragon_contest')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_dragon_contest_player')),
     sa.UniqueConstraint('contest_id', 'user_id', name=op.f('uq_dragon_contest_player_contest_id')),
-    info={'bind_key': 'drago_contest'}
+    info={'bind_key': 'dragon_contest'}
     )
     with op.batch_alter_table('dragon_contest_player', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_dragon_contest_player_contest_id'), ['contest_id'], unique=False)

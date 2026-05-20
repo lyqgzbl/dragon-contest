@@ -1,4 +1,5 @@
 from collections.abc import Mapping, Sequence
+from inspect import isawaitable
 from typing import Any, cast
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.ai.inference.models import ChatRequestMessage
@@ -42,3 +43,8 @@ class OpenAIHandler:
         if not content:
             raise ValueError("GitHub Models returned empty content")
         return content
+
+    async def close(self) -> None:
+        result = cast(Any, self.client).close()
+        if isawaitable(result):
+            await result

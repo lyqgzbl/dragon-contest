@@ -1,4 +1,4 @@
-from nonebot import require
+from nonebot import get_driver, require
 from nonebot.log import logger
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
@@ -24,7 +24,7 @@ __plugin_meta__ = PluginMetadata(
     homepage="https://github.com/lyqgzbl/dragon-contest",
     supported_adapters=inherit_supported_adapters("nonebot_plugin_alconna"),
     extra={
-        "author": "lyqgzbl <admin@lyqgzbl.com",
+        "author": "lyqgzbl <admin@lyqgzbl.com>",
         "version": "1.3.0",
     },
 )
@@ -45,6 +45,11 @@ else:
         temperature=0.7,
         top_p=0.9,
     )
+    handler = openai_handler
+
+    @get_driver().on_shutdown
+    async def _close_openai_handler():
+        await handler.close()
 
 
 from .commands import admin as _admin  # noqa: F401

@@ -12,6 +12,7 @@ from nonebot_plugin_alconna import MsgTarget, Target
 from ..models import ContestStatus, DragonContest, DragonContestPlayer
 from ..utils import (
     get_current_contest,
+    get_contest_signup_lock,
     get_or_create_config,
     register_contest_start_job,
 )
@@ -72,6 +73,8 @@ async def _handle_delete_contest(id: int, sess: async_scoped_session):
         await dragon_contest_command.finish(f"未找到ID为 {id} 的龙龙大赛")
     if contest.status == ContestStatus.RUNNING.value:
         await dragon_contest_command.finish("无法删除正在进行中的龙龙大赛")
+    with contextlib.suppress(Exception):
+        scheduler.remove_job(f"dragon_contest_start_{id}")
     await sess.execute(
         delete(DragonContestPlayer).where(DragonContestPlayer.contest_id == id)
     )
@@ -194,44 +197,46 @@ async def handle_add_dragon_contest_player(
         await add_dragon_contest_player_command.finish(
             "当前阶段的龙龙大赛已无法进行该操作"
         )
-    count = (
-        await sess.scalar(
+    contest_id = int(contest.id)
+    async with get_contest_signup_lock(contest_id):
+        count = (
+            await sess.scalar(
+                select(func.count())
+                .select_from(DragonContestPlayer)
+                .where(
+                    DragonContestPlayer.contest_id == contest_id,
+                    DragonContestPlayer.eliminated.is_(False),
+                )
+            )
+            or 0
+        )
+        if count >= contest.limit:
+            await add_dragon_contest_player_command.finish("本次龙龙大赛报名人数已满")
+        exists = await sess.scalar(
             select(func.count())
             .select_from(DragonContestPlayer)
             .where(
-                DragonContestPlayer.contest_id == contest.id,
-                DragonContestPlayer.eliminated.is_(False),
+                DragonContestPlayer.contest_id == contest_id,
+                DragonContestPlayer.user_id == user_id,
             )
         )
-        or 0
-    )
-    if count >= contest.limit:
-        await add_dragon_contest_player_command.finish("本次龙龙大赛报名人数已满")
-    exists = await sess.scalar(
-        select(func.count())
-        .select_from(DragonContestPlayer)
-        .where(
-            DragonContestPlayer.contest_id == contest.id,
-            DragonContestPlayer.user_id == user_id,
+        if exists:
+            await add_dragon_contest_player_command.finish("该用户已在参赛名单中")
+        player = DragonContestPlayer(
+            contest_id=contest_id,
+            user_id=user_id,
+            dragon_name=name,
         )
-    )
-    if exists:
-        await add_dragon_contest_player_command.finish("该用户已在参赛名单中")
-    player = DragonContestPlayer(
-        contest_id=contest.id,
-        user_id=user_id,
-        dragon_name=name,
-    )
-    sess.add(player)
-    try:
-        await sess.commit()
-    except IntegrityError:
-        await sess.rollback()
-        await add_dragon_contest_player_command.finish("添加失败,请查看日志")
-    except Exception as e:
-        await sess.rollback()
-        logger.exception(e)
-        await add_dragon_contest_player_command.finish("添加失败,请查看日志")
+        sess.add(player)
+        try:
+            await sess.commit()
+        except IntegrityError:
+            await sess.rollback()
+            await add_dragon_contest_player_command.finish("添加失败,请查看日志")
+        except Exception as e:
+            await sess.rollback()
+            logger.exception(e)
+            await add_dragon_contest_player_command.finish("添加失败,请查看日志")
     await add_dragon_contest_player_command.finish(
         f"已成功添加参赛者\n用户ID：{user_id}\n龙龙名称：{name}"
     )
