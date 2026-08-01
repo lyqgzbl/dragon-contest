@@ -2,6 +2,18 @@ import json
 import re
 from typing import Any
 
+RE_CLEAN_PREFIX = re.compile(r"^```(?:json)?\s*", flags=re.I | re.M)
+RE_CLEAN_SUFFIX = re.compile(r"\s*```$", flags=re.I | re.M)
+RE_WINNER = re.compile(
+    r'["\']?winner["\']?\s*[:；=]?\s*["\']?(p1|p2)["\']?', flags=re.I
+)
+RE_REASON_MULTI = re.compile(
+    r'["\']?reason["\']?\s*[:；=]?\s*["\'](.*?)["\']\s*,\s*["\']?(?:title|subtitle|columns|sections)["\']?',
+    flags=re.S,
+)
+RE_REASON_SINGLE = re.compile(r'["\']?reason["\']?\s*[:；=]?\s*["\']?([^"\'\n\}]+)')
+RE_JSON_BLOCK = re.compile(r"\{.*\}", flags=re.S)
+
 
 def _scan_valid_json_prefix(cleaned: str, cut_idx: int) -> tuple[bool, list[str]]:
     cur_stack: list[str] = []
@@ -48,8 +60,8 @@ def _reconstruct_closing_json(cleaned: str) -> dict | list | None:
 
 
 def _repair_json_data(s: str) -> dict | list | None:
-    cleaned = re.sub(r"^```(?:json)?\s*", "", s.strip(), flags=re.I | re.M)
-    cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.I | re.M).strip()
+    cleaned = RE_CLEAN_PREFIX.sub("", s.strip())
+    cleaned = RE_CLEAN_SUFFIX.sub("", cleaned).strip()
     if not cleaned:
         return None
 
@@ -115,21 +127,13 @@ def _extract_sections_array(cleaned: str) -> list | None:
 
 def _regex_extract_json(cleaned: str) -> dict | None:
     extracted: dict[str, Any] = {}
-    winner_match = re.search(
-        r'["\']?winner["\']?\s*[:；=]?\s*["\']?(p1|p2)["\']?', cleaned, re.I
-    )
+    winner_match = RE_WINNER.search(cleaned)
     if winner_match:
         extracted["winner"] = winner_match.group(1).lower()
 
-    reason_match = re.search(
-        r'["\']?reason["\']?\s*[:；=]?\s*["\'](.*?)["\']\s*,\s*["\']?(?:title|subtitle|columns|sections)["\']?',
-        cleaned,
-        re.S,
-    )
+    reason_match = RE_REASON_MULTI.search(cleaned)
     if not reason_match:
-        reason_match = re.search(
-            r'["\']?reason["\']?\s*[:；=]?\s*["\']?([^"\'\n\}]+)', cleaned
-        )
+        reason_match = RE_REASON_SINGLE.search(cleaned)
     if reason_match:
         extracted["reason"] = reason_match.group(1).strip()
 
@@ -148,14 +152,14 @@ def _try_raw_decode(cleaned: str) -> dict | None:
 
 
 def _parse_ai_json_response(content: str) -> dict | None:
-    cleaned = re.sub(r"^```(?:json)?\s*", "", content.strip(), flags=re.I | re.M)
-    cleaned = re.sub(r"\s*```$", "", cleaned, flags=re.I | re.M).strip()
+    cleaned = RE_CLEAN_PREFIX.sub("", content.strip())
+    cleaned = RE_CLEAN_SUFFIX.sub("", cleaned).strip()
 
     res = _repair_json_data(cleaned)
     if isinstance(res, dict):
         return res
 
-    match = re.search(r"\{.*\}", cleaned, flags=re.S)
+    match = RE_JSON_BLOCK.search(cleaned)
     if match:
         json_str = match.group(0)
         res = _repair_json_data(json_str)

@@ -2,15 +2,18 @@ import asyncio
 import random
 from dataclasses import dataclass
 
+from nonebot import get_bot, get_plugin_config
 from nonebot.adapters import Bot
-from sqlalchemy import select
-from nonebot import get_bot
 from nonebot.log import logger
-from nonebot_plugin_orm import get_session
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage
+from nonebot_plugin_orm import get_session
+from sqlalchemy import func, select
 
+from .config import Config
+from .models import ContestStatus, DragonContest, DragonContestPlayer
 from .utils import generate_comparison_image, run_single_battle
-from .models import DragonContest, DragonContestPlayer, ContestStatus
+
+plugin_config = get_plugin_config(Config)
 
 
 @dataclass(frozen=True)
@@ -51,19 +54,37 @@ async def _mark_contest_finished(contest_id: int) -> None:
         await sess.commit()
 
 
-async def _mark_player_eliminated(contest_id: int, player_id: int) -> None:
+async def _mark_player_eliminated_and_check_alive(
+    contest_id: int, player_id: int
+) -> tuple[bool, int]:
     async with get_session() as sess:
+        contest = await sess.get(DragonContest, contest_id)
+        if not contest or contest.status != ContestStatus.RUNNING.value:
+            return True, 0
+
         player = await sess.scalar(
             select(DragonContestPlayer).where(
                 DragonContestPlayer.id == player_id,
                 DragonContestPlayer.contest_id == contest_id,
             )
         )
-        if not player:
-            return
-        player.eliminated = True
-        sess.add(player)
-        await sess.commit()
+        if player:
+            player.eliminated = True
+            sess.add(player)
+            await sess.commit()
+
+        alive_count = (
+            await sess.scalar(
+                select(func.count())
+                .select_from(DragonContestPlayer)
+                .where(
+                    DragonContestPlayer.contest_id == contest_id,
+                    DragonContestPlayer.eliminated.is_(False),
+                )
+            )
+            or 0
+        )
+        return False, alive_count
 
 
 async def _advance_round(contest_id: int, round_no: int) -> None:
@@ -136,7 +157,7 @@ async def _send_battle_result(
     bot: Bot,
 ) -> None:
     await UniMessage.text(
-        f"第 {round_no} 轮·第 {battle_no}：{p1.dragon_name} vs {p2.dragon_name}"
+        f"第 {round_no} 轮·第 {battle_no} 场：{p1.dragon_name} vs {p2.dragon_name}"
     ).send(target=target, bot=bot)
     try:
         payload = dict(compare_data or {})
@@ -189,12 +210,13 @@ async def _run_round(
             bot=bot,
         )
         battle_no += 1
-        await _mark_player_eliminated(contest_id, loser.id)
-        if await _contest_stopped(contest_id):
+        is_stopped, alive_count = await _mark_player_eliminated_and_check_alive(
+            contest_id, loser.id
+        )
+        if is_stopped:
             return True, None
-        alive_count = len(await _get_alive_players(contest_id))
         if alive_count > 1:
-            await asyncio.sleep(60)
+            await asyncio.sleep(max(1, plugin_config.dc_battle_interval))
     bye_player = alive_players[0] if alive_players else None
     return False, bye_player
 

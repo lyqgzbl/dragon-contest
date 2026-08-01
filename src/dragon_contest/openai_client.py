@@ -16,6 +16,8 @@ class OpenAIHandler:
         self.client = AsyncOpenAI(
             api_key=api_key,
             base_url=base_url,
+            timeout=30.0,
+            max_retries=2,
         )
         self.api_key = api_key
         self.base_url = base_url
@@ -27,6 +29,7 @@ class OpenAIHandler:
         self,
         messages: Iterable[ChatCompletionMessageParam] | Iterable[dict[str, Any]],
         response_format: dict[str, Any] | None = None,
+        max_tokens: int | None = 1000,
     ) -> str:
         kwargs: dict[str, Any] = {
             "messages": messages,
@@ -36,6 +39,8 @@ class OpenAIHandler:
         }
         if response_format is not None:
             kwargs["response_format"] = response_format
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
         response = await self.client.chat.completions.create(**kwargs)
         choices = response.choices
         if not choices:

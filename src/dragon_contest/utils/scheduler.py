@@ -1,10 +1,11 @@
+import contextlib
 from datetime import datetime
 
-from sqlalchemy import select
 from nonebot import get_driver
 from nonebot.log import logger
 from nonebot_plugin_apscheduler import scheduler
 from nonebot_plugin_orm import get_session
+from sqlalchemy import select, text
 
 from ..models import ContestStatus, DragonContest
 
@@ -49,6 +50,9 @@ async def on_contest_start(contest_id: int):
 async def restore_contest_start_jobs():
     now_ts = int(datetime.now().timestamp())
     async with get_session() as sess:
+        with contextlib.suppress(Exception):
+            await sess.execute(text("PRAGMA journal_mode=WAL;"))
+            await sess.execute(text("PRAGMA synchronous=NORMAL;"))
         contests = await sess.scalars(
             select(DragonContest).where(
                 DragonContest.status == ContestStatus.SIGNUP.value,
