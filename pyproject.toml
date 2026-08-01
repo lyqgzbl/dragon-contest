@@ -12,8 +12,7 @@ dependencies = [
     "nonebot-plugin-htmlrender<1.0.0",
     "pydantic<3.0.0",
     "sqlalchemy<3.0.0",
-    "azure-ai-inference",
-    "azure-core",
+    "openai>=1.0.0",
 ]
 
 

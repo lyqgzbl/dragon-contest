@@ -30,17 +30,23 @@ __plugin_meta__ = PluginMetadata(
 )
 
 
-if not plugin_config.dc_github_token:
+api_key = plugin_config.dc_api_key or plugin_config.dc_github_token
+base_url = plugin_config.dc_base_url
+if not base_url and plugin_config.dc_github_token and not plugin_config.dc_api_key:
+    base_url = "https://models.github.ai/inference"
+
+if not api_key:
     logger.opt(colors=True).warning(
-        "<yellow>缺失必要配置项 'dc_github_token'，已禁用龙龙大赛插件</yellow>"
+        "<yellow>缺失必要配置项 'dc_api_key' 或 'dc_github_token'，"
+        "已禁用龙龙大赛插件</yellow>"
     )
     openai_handler = None
 else:
     from .openai_client import OpenAIHandler
 
     openai_handler = OpenAIHandler(
-        api_key=plugin_config.dc_github_token,
-        endpoint="https://models.github.ai/inference",
+        api_key=api_key,
+        base_url=base_url,
         model_name=plugin_config.dc_ai_model_name,
         temperature=0.7,
         top_p=0.9,

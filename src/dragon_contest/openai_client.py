@@ -1,50 +1,45 @@
-from collections.abc import Mapping, Sequence
-from inspect import isawaitable
-from typing import Any, cast
-from azure.ai.inference.aio import ChatCompletionsClient
-from azure.ai.inference.models import ChatRequestMessage
-from azure.core.credentials import AzureKeyCredential
+from collections.abc import Iterable
+from typing import Any
+from openai import AsyncOpenAI
+from openai.types.chat import ChatCompletionMessageParam
 
 
 class OpenAIHandler:
     def __init__(
         self,
         api_key: str,
-        endpoint: str,
+        base_url: str | None,
         model_name: str,
-        temperature: float,
-        top_p: float,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
     ):
-        self.client = ChatCompletionsClient(
-            endpoint=endpoint, credential=AzureKeyCredential(api_key)
+        self.client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
         )
         self.api_key = api_key
-        self.endpoint = endpoint
+        self.base_url = base_url
         self.model_name = model_name
         self.temperature = temperature
         self.top_p = top_p
 
     async def get_response(
         self,
-        messages: Sequence[ChatRequestMessage | Mapping[str, Any]],
+        messages: Iterable[ChatCompletionMessageParam] | Iterable[dict[str, Any]],
     ) -> str:
-        request_messages = cast(list[ChatRequestMessage], list(messages))
-        client = cast(Any, self.client)
-        response = await client.complete(
-            messages=request_messages,
+        response = await self.client.chat.completions.create(
+            messages=messages,  # type: ignore[arg-type]
             model=self.model_name,
             temperature=self.temperature,
             top_p=self.top_p,
         )
         choices = response.choices
         if not choices:
-            raise ValueError("GitHub Models returned no choices")
+            raise ValueError("OpenAI API returned no choices")
         content = choices[0].message.content
         if not content:
-            raise ValueError("GitHub Models returned empty content")
+            raise ValueError("OpenAI API returned empty content")
         return content
 
     async def close(self) -> None:
-        result = cast(Any, self.client).close()
-        if isawaitable(result):
-            await result
+        await self.client.close()
