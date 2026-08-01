@@ -37,8 +37,7 @@ async def _get_alive_players(contest_id: int) -> list[PlayerSnapshot]:
             )
         ).all()
     return [
-        PlayerSnapshot(id=int(row.id), dragon_name=str(row.dragon_name))
-        for row in rows
+        PlayerSnapshot(id=int(row.id), dragon_name=str(row.dragon_name)) for row in rows
     ]
 
 

@@ -11,9 +11,7 @@ plugin_config = get_plugin_config(Config)
 
 
 def is_enable() -> Rule:
-    return Rule(
-        lambda: bool(plugin_config.dc_api_key or plugin_config.dc_github_token)
-    )
+    return Rule(lambda: bool(plugin_config.dc_api_key or plugin_config.dc_github_token))
 
 
 dragon_contest_command = on_alconna(

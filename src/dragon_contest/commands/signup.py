@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from nonebot_plugin_orm import async_scoped_session
 
+from ..contest_runner import PlayerSnapshot
 from ..models import DragonContestPlayer
 from ..utils import (
     generate_comparison_image,
@@ -144,8 +145,8 @@ async def handle_dragon_name_comparison(name1: str, name2: str):
         await dragon_name_comparison_command.finish("龙龙名称不能为空")
     if name1 == name2:
         await dragon_name_comparison_command.finish("龙龙名称不能相同")
-    p1 = DragonContestPlayer(contest_id=0, user_id="comparison_p1", dragon_name=name1)
-    p2 = DragonContestPlayer(contest_id=0, user_id="comparison_p2", dragon_name=name2)
+    p1 = PlayerSnapshot(id=0, dragon_name=name1)
+    p2 = PlayerSnapshot(id=0, dragon_name=name2)
     winner = None
     loser = None
     reason = "未知"
@@ -211,9 +212,7 @@ async def handle_dragon_contest_help():
                 [
                     {"title": "", "content": "删除比赛"},
                     {
-                        "title": (
-                            "/龙龙大赛 删除 比赛ID | /龙龙大赛 强制删除 比赛ID"
-                        ),
+                        "title": ("/龙龙大赛 删除 比赛ID | /龙龙大赛 强制删除 比赛ID"),
                         "content": "删除指定比赛，或强制删除正在进行的比赛",
                     },
                     {
@@ -259,13 +258,9 @@ async def handle_dragon_contest_help():
                 [
                     {"title": "", "content": "龙龙 PK / 对比"},
                     {
-                        "title": (
-                            "/龙龙名称比较 <名称1> <名称2>\n"
-                            "(别名: /龙龙pk)"
-                        ),
+                        "title": ("/龙龙名称比较 <名称1> <名称2>\n(别名: /龙龙pk)"),
                         "content": (
-                            "召唤毒舌 AI 裁判对两个龙龙名称"
-                            "进行趣味对比评审并生成对比图"
+                            "召唤毒舌 AI 裁判对两个龙龙名称进行趣味对比评审并生成对比图"
                         ),
                     },
                     {

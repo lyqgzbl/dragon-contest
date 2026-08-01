@@ -26,13 +26,17 @@ class OpenAIHandler:
     async def get_response(
         self,
         messages: Iterable[ChatCompletionMessageParam] | Iterable[dict[str, Any]],
+        response_format: dict[str, Any] | None = None,
     ) -> str:
-        response = await self.client.chat.completions.create(
-            messages=messages,  # type: ignore[arg-type]
-            model=self.model_name,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
+        kwargs: dict[str, Any] = {
+            "messages": messages,
+            "model": self.model_name,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+        }
+        if response_format is not None:
+            kwargs["response_format"] = response_format
+        response = await self.client.chat.completions.create(**kwargs)
         choices = response.choices
         if not choices:
             raise ValueError("OpenAI API returned no choices")
