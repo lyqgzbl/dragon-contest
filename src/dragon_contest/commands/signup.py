@@ -185,23 +185,110 @@ async def handle_dragon_contest_champion(sess: async_scoped_session):
 
 @dragon_contest_help_command.handle()
 async def handle_dragon_contest_help():
-    lines = [
-        "龙龙大赛命令帮助\n",
-        "【管理命令】(仅超级用户)\n",
-        "1. /龙龙大赛 创建 YYYY/MM/DD HH:MM [-n|--number 参赛人数]",
-        "2. /龙龙大赛 删除 比赛ID",
-        "3. /龙龙大赛 强制删除 比赛ID",
-        "4. /龙龙大赛 列表",
-        "5. /龙龙大赛 状态\n",
-        "6. /添加龙龙大赛参赛者 用户ID 龙龙名称",
-        "7. /移除龙龙大赛参赛者 用户ID",
-        "8. /龙龙大赛参赛名单\n",
-        "【参赛者命令】\n",
-        "9. /加入龙龙大赛 龙龙名称",
-        "10. /取消报名",
-        "11. /修改龙龙名称 新的龙龙名称",
-        "12. /龙龙名称比较 名称1 名称2",
-        "13. /龙龙大赛冠军",
-        "14. /龙龙大赛帮助",
+    sections = [
+        {
+            "title": "管理命令（超级用户权限）",
+            "rows": [
+                [
+                    {"title": "", "content": "创建比赛"},
+                    {
+                        "title": "/龙龙大赛 创建 YYYY/MM/DD HH:MM [-n 人数]",
+                        "content": "创建新的龙龙大赛，时间格式为 YYYY/MM/DD HH:MM",
+                    },
+                    {
+                        "title": "管理示例",
+                        "content": "/龙龙大赛 创建 2025/08/05 22:00 -n 16",
+                    },
+                ],
+                [
+                    {"title": "", "content": "比赛列表/状态"},
+                    {
+                        "title": "/龙龙大赛 列表 | /龙龙大赛 状态",
+                        "content": "查看进行中的比赛列表或当前比赛报名状态",
+                    },
+                    {"title": "管理示例", "content": "/龙龙大赛 列表"},
+                ],
+                [
+                    {"title": "", "content": "删除比赛"},
+                    {
+                        "title": (
+                            "/龙龙大赛 删除 比赛ID | /龙龙大赛 强制删除 比赛ID"
+                        ),
+                        "content": "删除指定比赛，或强制删除正在进行的比赛",
+                    },
+                    {
+                        "title": "管理示例",
+                        "content": "/龙龙大赛 强制删除 1",
+                    },
+                ],
+                [
+                    {"title": "", "content": "参赛者管理"},
+                    {
+                        "title": (
+                            "/添加龙龙大赛参赛者 用户ID 龙龙名称\n"
+                            "/移除龙龙大赛参赛者 用户ID\n"
+                            "/龙龙大赛参赛名单"
+                        ),
+                        "content": "手动添加/移除参赛者或查看完整参赛名单",
+                    },
+                    {
+                        "title": "管理示例",
+                        "content": "/添加龙龙大赛参赛者 12345678 霸王龙",
+                    },
+                ],
+            ],
+        },
+        {
+            "title": "参赛者与玩家指令",
+            "rows": [
+                [
+                    {"title": "", "content": "报名与改名"},
+                    {
+                        "title": (
+                            "/加入龙龙大赛 <龙龙名称>\n"
+                            "/修改龙龙名称 <新名称>\n"
+                            "/取消报名"
+                        ),
+                        "content": "快捷报名、赛前修改龙龙名称或取消本次报名",
+                    },
+                    {
+                        "title": "玩家示例",
+                        "content": "/加入龙龙大赛 灭世黑龙",
+                    },
+                ],
+                [
+                    {"title": "", "content": "龙龙 PK / 对比"},
+                    {
+                        "title": (
+                            "/龙龙名称比较 <名称1> <名称2>\n"
+                            "(别名: /龙龙pk)"
+                        ),
+                        "content": (
+                            "召唤毒舌 AI 裁判对两个龙龙名称"
+                            "进行趣味对比评审并生成对比图"
+                        ),
+                    },
+                    {
+                        "title": "玩家示例",
+                        "content": "/龙龙pk 机械巨龙 魔法飞龙",
+                    },
+                ],
+                [
+                    {"title": "", "content": "冠军查询与帮助"},
+                    {
+                        "title": "/龙龙大赛冠军\n/龙龙大赛帮助",
+                        "content": "查询历史获得冠军的龙龙或调出本帮助图卡",
+                    },
+                    {"title": "玩家示例", "content": "/龙龙大赛冠军"},
+                ],
+            ],
+        },
     ]
-    await dragon_contest_help_command.finish("\n".join(lines))
+    payload = {
+        "title": "龙龙大赛命令指南",
+        "subtitle": "Dragon Contest Help Guide",
+        "columns": ["分类", "指令与格式", "功能说明及示例"],
+        "sections": sections,
+    }
+    img = await generate_comparison_image(payload)
+    await UniMessage.image(raw=img).send()
