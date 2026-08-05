@@ -29,7 +29,7 @@ class OpenAIHandler:
         self,
         messages: Iterable[ChatCompletionMessageParam] | Iterable[dict[str, Any]],
         response_format: dict[str, Any] | None = None,
-        max_tokens: int | None = 1000,
+        max_tokens: int | None = 4096,
     ) -> str:
         kwargs: dict[str, Any] = {
             "messages": messages,
